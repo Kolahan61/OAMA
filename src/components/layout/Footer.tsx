@@ -9,9 +9,9 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between">
           {/* School Name and Copyright */}
           <div className="mb-4 md:mb-0">
-            <h3 className="text-xl font-bold mb-2">BJJ Academy</h3>
+            <h3 className="text-xl font-bold mb-2">Ottawa Academy of Martial Arts</h3>
             <p className="text-gray-400 text-sm">
-              © {currentYear} BJJ Academy. All rights reserved.
+              © {currentYear} Ottawa Academy of Martial Arts. All rights reserved.
             </p>
           </div>
 
