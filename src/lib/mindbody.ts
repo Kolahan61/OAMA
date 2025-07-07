@@ -9,6 +9,31 @@ const mindbodyAPI = axios.create({
   },
 });
 
+// Add response interceptor for error handling
+mindbodyAPI.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('Mindbody API Error:', {
+        status: error.response.status,
+        data: error.response.data,
+        headers: error.response.headers,
+      });
+      throw new Error(error.response.data.Message || 'An error occurred with the Mindbody API');
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('No response received:', error.request);
+      throw new Error('No response received from Mindbody API');
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error('Error setting up request:', error.message);
+      throw new Error('Error setting up request to Mindbody API');
+    }
+  }
+);
+
 // Type definitions for class data
 export interface Class {
   id: string;
@@ -19,6 +44,16 @@ export interface Class {
   description?: string;
   capacity?: number;
   enrolled?: number;
+  isAvailable?: boolean;
+  waitlistCount?: number;
+}
+
+// Type for class registration response
+export interface RegistrationResponse {
+  success: boolean;
+  message: string;
+  registrationId?: string;
+  error?: string;
 }
 
 // Mock data for development
@@ -32,6 +67,8 @@ const mockClasses: Class[] = [
     description: 'Perfect for beginners. Learn the basic positions, escapes, and submissions.',
     capacity: 20,
     enrolled: 15,
+    isAvailable: true,
+    waitlistCount: 0,
   },
   {
     id: '2',
@@ -42,6 +79,8 @@ const mockClasses: Class[] = [
     description: 'High-level no-gi techniques and competition preparation.',
     capacity: 15,
     enrolled: 12,
+    isAvailable: true,
+    waitlistCount: 0,
   },
   {
     id: '3',
@@ -52,6 +91,8 @@ const mockClasses: Class[] = [
     description: 'Fun and safe BJJ training for kids.',
     capacity: 25,
     enrolled: 18,
+    isAvailable: true,
+    waitlistCount: 0,
   },
   {
     id: '4',
@@ -62,37 +103,101 @@ const mockClasses: Class[] = [
     description: 'Free rolling and drilling time for all levels.',
     capacity: 30,
     enrolled: 20,
+    isAvailable: true,
+    waitlistCount: 0,
   },
 ];
 
-// Placeholder function to fetch classes
-// For now, returns mock data. Will be replaced with actual API call later.
+// Function to fetch classes
 export async function getClasses(): Promise<Class[]> {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // In production, this would be:
-  // const response = await mindbodyAPI.get('/classes');
-  // return response.data;
-  
-  return mockClasses;
+  if (process.env.NODE_ENV === 'development' && !process.env.MINDBODY_API_KEY) {
+    // Return mock data in development if no API key is set
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+    return mockClasses;
+  }
+
+  try {
+    const response = await mindbodyAPI.get('/classes');
+    return response.data.Classes.map((cls: any) => ({
+      id: cls.Id,
+      name: cls.Name,
+      startTime: cls.StartDateTime,
+      endTime: cls.EndDateTime,
+      instructor: cls.Staff?.Name || 'TBD',
+      description: cls.Description,
+      capacity: cls.MaxCapacity,
+      enrolled: cls.TotalBooked,
+      isAvailable: cls.IsAvailable,
+      waitlistCount: cls.WebWaitlistCount,
+    }));
+  } catch (error) {
+    console.error('Error fetching classes:', error);
+    throw error;
+  }
 }
 
-// Placeholder function for member login
-export async function memberLogin(username: string, password: string): Promise<{ token: string; user: any }> {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Mock response
-  return {
-    token: 'mock-auth-token',
-    user: {
-      id: '123',
-      name: 'John Doe',
-      email: 'john@example.com',
-      membershipLevel: 'Gold',
-    },
-  };
+// Function to register for a class
+export async function registerForClass(
+  classId: string,
+  clientId: string
+): Promise<RegistrationResponse> {
+  if (process.env.NODE_ENV === 'development' && !process.env.MINDBODY_API_KEY) {
+    // Simulate registration in development
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return {
+      success: true,
+      message: 'Successfully registered for class (Development Mode)',
+      registrationId: `mock-reg-${Date.now()}`,
+    };
+  }
+
+  try {
+    const response = await mindbodyAPI.post('/class/addclient', {
+      ClientId: clientId,
+      ClassId: classId,
+    });
+
+    return {
+      success: true,
+      message: 'Successfully registered for class',
+      registrationId: response.data.ClassRegistrationId,
+    };
+  } catch (error) {
+    console.error('Error registering for class:', error);
+    throw error;
+  }
+}
+
+// Function to check class availability
+export async function checkClassAvailability(classId: string): Promise<{
+  isAvailable: boolean;
+  spotsLeft: number;
+  waitlistCount: number;
+}> {
+  if (process.env.NODE_ENV === 'development' && !process.env.MINDBODY_API_KEY) {
+    // Return mock availability in development
+    const mockClass = mockClasses.find(c => c.id === classId);
+    if (!mockClass) {
+      throw new Error('Class not found');
+    }
+    return {
+      isAvailable: mockClass.isAvailable || false,
+      spotsLeft: (mockClass.capacity || 0) - (mockClass.enrolled || 0),
+      waitlistCount: mockClass.waitlistCount || 0,
+    };
+  }
+
+  try {
+    const response = await mindbodyAPI.get(`/class/${classId}/availability`);
+    return {
+      isAvailable: response.data.IsAvailable,
+      spotsLeft: response.data.SpotsLeft,
+      waitlistCount: response.data.WaitlistCount,
+    };
+  } catch (error) {
+    console.error('Error checking class availability:', error);
+    throw error;
+  }
 }
 
 export default mindbodyAPI; 

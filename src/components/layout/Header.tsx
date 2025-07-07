@@ -3,8 +3,11 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Menu, X, ChevronDown } from 'lucide-react'
+import { Menu, X, ChevronDown, Phone, Mail } from 'lucide-react'
 import LoginButton from '../ui/LoginButton'
+import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/contexts/ToastContext'
+import LoginModal from '../LoginModal'
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -118,6 +121,7 @@ const navLinks = [
 ]
 
 export default function Header() {
+  const { user, logout } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isProgramsOpen, setIsProgramsOpen] = useState(false)
   const [isMembershipsOpen, setIsMembershipsOpen] = useState(false)
@@ -126,6 +130,8 @@ export default function Header() {
   const [hasScrolled, setHasScrolled] = useState(false)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [isMobile, setIsMobile] = useState(false)
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  const { showToast } = useToast()
 
   useEffect(() => {
     // Check if we're on mobile on mount and window resize
@@ -164,6 +170,13 @@ export default function Header() {
     }
   }, [lastScrollY, isMobile])
 
+  // Close all dropdowns
+  const closeAllDropdowns = () => {
+    setIsProgramsOpen(false)
+    setIsMembershipsOpen(false)
+    setIsCampsOpen(false)
+  }
+
   // Combine dynamic classes for header
   const headerClasses = `
     fixed w-full top-0 z-50
@@ -173,231 +186,357 @@ export default function Header() {
     ${hasScrolled ? 'shadow-md' : ''}
   `.trim()
 
+  const handleLogout = async () => {
+    try {
+      await logout()
+      showToast('Successfully logged out', 'success')
+    } catch (error) {
+      showToast('Failed to log out', 'error')
+    }
+  }
+
   return (
-    <header className={headerClasses}>
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
-            <Image 
-              src="/images/logos/OAMA Logo white.png" 
-              alt="Ottawa Academy of Martial Arts" 
-              width={200} 
-              height={60}
-              className="h-12 w-auto"
-              priority
-            />
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            {navLinks.map((link) =>
-              link.dropdown ? (
-                <div key={link.label} className="group relative">
-                  <Link href={link.href} className="flex items-center text-brand-textMuted hover:text-brand-white transition-colors">
-                    {link.label}
-                    <ChevronDown className="w-4 h-4 ml-1 transition-transform group-hover:rotate-180" />
-                  </Link>
-                  {/* Dropdown Menu */}
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-max max-w-4xl opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-all duration-300 bg-brand-surface border border-brand-border rounded-lg shadow-xl p-8">
-                    {link.subLinks ? (
-                      // Programs dropdown layout
-                      <>
-                        <div className="grid grid-cols-2 gap-x-12 gap-y-6 mb-6">
-                          {link.subLinks?.map((col) => (
-                            <div key={col.category}>
-                              <h3 className="font-heading text-xl text-brand-red mb-4">{col.category}</h3>
-                              <ul className="space-y-3">
-                                {col.links.map((subLink) => (
-                                  <li key={subLink.href}>
-                                    <Link href={subLink.href} className="block group/item">
-                                      <div className="text-brand-white font-medium group-hover/item:text-brand-red transition-colors">
-                                        {subLink.label}
-                                      </div>
-                                      <div className="text-brand-textMuted text-sm mt-1 group-hover/item:text-brand-textMuted">
-                                        {subLink.description}
-                                      </div>
-                                    </Link>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="border-t border-brand-border pt-6">
-                          <h4 className="font-heading text-lg text-brand-red mb-4">Special Programs</h4>
-                          <div className="grid grid-cols-2 gap-x-12 gap-y-3">
-                            {link.specialPrograms?.map((specialProgram) => (
-                              <Link key={specialProgram.href} href={specialProgram.href} className="block group/special">
-                                <div className="text-brand-white font-medium group-hover/special:text-brand-red transition-colors">
-                                  {specialProgram.label}
-                                </div>
-                                <div className="text-brand-textMuted text-sm mt-1 group-hover/special:text-brand-textMuted">
-                                  {specialProgram.description}
-                                </div>
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    ) : link.membershipLinks ? (
-                      // Memberships dropdown layout
-                      <div className="space-y-4">
-                        {link.membershipLinks?.map((membership) => (
-                          <Link key={membership.href} href={membership.href} className="block group/membership p-4 border border-brand-border rounded-lg hover:border-brand-red transition-colors">
-                            <div className="text-brand-white font-medium group-hover/membership:text-brand-red transition-colors mb-2">
-                              {membership.label}
-                            </div>
-                            <div className="text-brand-textMuted text-sm group-hover/membership:text-brand-textMuted">
-                              {membership.description}
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      // Camps dropdown layout
-                      <div className="space-y-4">
-                        {link.campLinks?.map((camp) => (
-                          <Link key={camp.href} href={camp.href} className="block group/camp">
-                            <div className="text-brand-white font-medium group-hover/camp:text-brand-red transition-colors">
-                              {camp.label}
-                            </div>
-                            <div className="text-brand-textMuted text-sm mt-1 group-hover/camp:text-brand-textMuted">
-                              {camp.description}
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <Link key={link.label} href={link.href} className="text-brand-textMuted hover:text-brand-white transition-colors">
-                  {link.label}
-                </Link>
-              )
-            )}
-          </nav>
-
-          <div className="flex items-center space-x-4">
-            {/* Desktop Login Button */}
-            <div className="hidden md:block">
-              <LoginButton />
+    <>
+      {/* Top Bar */}
+      <div className="hidden md:block bg-brand-primary text-white py-2">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center">
+            <div className="flex space-x-6">
+              <a href="tel:+16135551234" className="flex items-center hover:text-brand-white/80 transition-colors">
+                <Phone className="w-4 h-4 mr-2" />
+                <span>(613) 555-1234</span>
+              </a>
+              <a href="mailto:info@oama.ca" className="flex items-center hover:text-brand-white/80 transition-colors">
+                <Mail className="w-4 h-4 mr-2" />
+                <span>info@oama.ca</span>
+              </a>
             </div>
-            {/* Mobile Menu Toggle */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden text-brand-white hover:text-brand-red"
-              aria-label="Toggle mobile menu"
+            <Link 
+              href="/free-week" 
+              className="bg-brand-primary-dark hover:bg-brand-primary-darker px-4 py-1 rounded transition-colors"
             >
-              {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
-            </button>
+              Start Your Free Week
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Mobile Navigation Menu */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden fixed top-[64px] left-0 w-full h-[calc(100vh-64px)] overflow-y-auto bg-brand-dark border-t border-brand-border">
-          <nav className="flex flex-col space-y-2 p-4">
-            {/* Mobile Login Button */}
-            <div className="mb-4 pb-4 border-b border-brand-border">
-              <LoginButton />
-            </div>
-            {navLinks.map((link) =>
-              link.dropdown ? (
-                <div key={link.label}>
-                  <button
-                    onClick={() => {
-                      if (link.label === 'Programs') {
-                        setIsProgramsOpen(!isProgramsOpen)
-                      } else if (link.label === 'Memberships') {
-                        setIsMembershipsOpen(!isMembershipsOpen)
-                      } else if (link.label === 'Camps') {
-                        setIsCampsOpen(!isCampsOpen)
-                      }
+      {/* Main Header */}
+      <header className={headerClasses}>
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
+              <Image 
+                src="/images/logos/OAMA Logo white.png" 
+                alt="Ottawa Academy of Martial Arts" 
+                width={200} 
+                height={60}
+                className="h-12 w-auto"
+                priority
+              />
+            </Link>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center space-x-6">
+              {navLinks.map((link) =>
+                link.dropdown ? (
+                  <div 
+                    key={link.label} 
+                    className="group relative"
+                    onMouseEnter={() => {
+                      closeAllDropdowns()
+                      if (link.href === '/programs') setIsProgramsOpen(true)
+                      if (link.href === '/memberships') setIsMembershipsOpen(true)
+                      if (link.href === '/camps') setIsCampsOpen(true)
                     }}
-                    className="w-full flex justify-between items-center text-lg text-brand-textMuted hover:text-brand-white transition-colors py-2"
+                    onMouseLeave={() => {
+                      if (link.href === '/programs') setIsProgramsOpen(false)
+                      if (link.href === '/memberships') setIsMembershipsOpen(false)
+                      if (link.href === '/camps') setIsCampsOpen(false)
+                    }}
                   >
-                    {link.label}
-                    <ChevronDown className={`w-5 h-5 transition-transform ${
-                      (link.label === 'Programs' && isProgramsOpen) || 
-                      (link.label === 'Memberships' && isMembershipsOpen) || 
-                      (link.label === 'Camps' && isCampsOpen) ? 'rotate-180' : ''
-                    }`} />
-                  </button>
-                  {((link.label === 'Programs' && isProgramsOpen) || (link.label === 'Memberships' && isMembershipsOpen) || (link.label === 'Camps' && isCampsOpen)) && (
-                    <div className="pl-4 pt-2 pb-2 border-l border-brand-border ml-2">
-                      {link.subLinks && (
-                        <>
-                          {link.subLinks?.map((col) => (
-                            <div key={col.category} className="mb-2">
-                              <h4 className="font-bold text-brand-white text-md mb-1">{col.category}</h4>
-                              <ul className="space-y-1">
-                                {col.links.map((subLink) => (
-                                  <li key={subLink.href}>
-                                    <Link href={subLink.href} onClick={() => setIsMobileMenuOpen(false)} className="block text-brand-textMuted hover:text-brand-red transition-colors py-1">
+                    <Link 
+                      href={link.href} 
+                      className="flex items-center text-brand-textMuted hover:text-brand-white transition-colors"
+                    >
+                      {link.label}
+                      <ChevronDown className="w-4 h-4 ml-1 transition-transform group-hover:rotate-180" />
+                    </Link>
+
+                    {/* Programs Dropdown */}
+                    {link.href === '/programs' && isProgramsOpen && (
+                      <div className="absolute top-full left-0 w-[600px] bg-brand-dark border border-brand-border rounded-lg shadow-lg p-6 grid grid-cols-2 gap-6">
+                        <div className="space-y-6">
+                          {link.subLinks?.map((category) => (
+                            <div key={category.category}>
+                              <h3 className="text-brand-white font-semibold mb-2">{category.category}</h3>
+                              <div className="space-y-4">
+                                {category.links.map((subLink) => (
+                                  <Link
+                                    key={subLink.href}
+                                    href={subLink.href}
+                                    className="block group"
+                                  >
+                                    <span className="block text-brand-white group-hover:text-brand-primary transition-colors">
                                       {subLink.label}
-                                    </Link>
-                                  </li>
+                                    </span>
+                                    <span className="text-sm text-brand-textMuted group-hover:text-brand-white transition-colors">
+                                      {subLink.description}
+                                    </span>
+                                  </Link>
                                 ))}
-                              </ul>
+                              </div>
                             </div>
                           ))}
-                          <div className="mt-2 pt-2 border-t border-brand-border">
-                            <ul className="space-y-1">
-                              {link.specialPrograms?.map((specialProgram) => (
-                                <li key={specialProgram.href}>
-                                  <Link href={specialProgram.href} onClick={() => setIsMobileMenuOpen(false)} className="block text-brand-textMuted hover:text-brand-red transition-colors py-1">
-                                    {specialProgram.label}
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </>
-                      )}
-                      {link.membershipLinks && (
-                        <ul className="space-y-2">
-                                                     {link.membershipLinks?.map((membership) => (
-                             <li key={membership.href}>
-                               <Link href={membership.href} onClick={() => setIsMobileMenuOpen(false)} className="block border border-brand-border rounded p-3 hover:border-brand-red transition-colors">
-                                 <div className="text-brand-white font-medium mb-1">{membership.label}</div>
-                                 <div className="text-brand-textMuted text-xs">
-                                   {membership.description}
-                                 </div>
-                               </Link>
-                             </li>
-                           ))}
-                        </ul>
-                      )}
-                      {link.campLinks && (
-                        <ul className="space-y-1">
-                          {link.campLinks?.map((camp) => (
-                            <li key={camp.href}>
-                              <Link href={camp.href} onClick={() => setIsMobileMenuOpen(false)} className="block text-brand-textMuted hover:text-brand-red transition-colors py-1">
-                                {camp.label}
+                        </div>
+                        <div>
+                          <h3 className="text-brand-white font-semibold mb-2">Special Programs</h3>
+                          <div className="space-y-4">
+                            {link.specialPrograms?.map((program) => (
+                              <Link
+                                key={program.href}
+                                href={program.href}
+                                className="block group"
+                              >
+                                <span className="block text-brand-white group-hover:text-brand-primary transition-colors">
+                                  {program.label}
+                                </span>
+                                <span className="text-sm text-brand-textMuted group-hover:text-brand-white transition-colors">
+                                  {program.description}
+                                </span>
                               </Link>
-                            </li>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Memberships Dropdown */}
+                    {link.href === '/memberships' && isMembershipsOpen && (
+                      <div className="absolute top-full left-0 w-[400px] bg-brand-dark border border-brand-border rounded-lg shadow-lg p-6">
+                        <div className="space-y-4">
+                          {link.membershipLinks?.map((membership) => (
+                            <Link
+                              key={membership.href}
+                              href={membership.href}
+                              className="block group"
+                            >
+                              <span className="block text-brand-white group-hover:text-brand-primary transition-colors">
+                                {membership.label}
+                              </span>
+                              <span className="text-sm text-brand-textMuted group-hover:text-brand-white transition-colors">
+                                {membership.description}
+                              </span>
+                            </Link>
                           ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Camps Dropdown */}
+                    {link.href === '/camps' && isCampsOpen && (
+                      <div className="absolute top-full left-0 w-[400px] bg-brand-dark border border-brand-border rounded-lg shadow-lg p-6">
+                        <div className="space-y-4">
+                          {link.campLinks?.map((camp) => (
+                            <Link
+                              key={camp.href}
+                              href={camp.href}
+                              className="block group"
+                            >
+                              <span className="block text-brand-white group-hover:text-brand-primary transition-colors">
+                                {camp.label}
+                              </span>
+                              <span className="text-sm text-brand-textMuted group-hover:text-brand-white transition-colors">
+                                {camp.description}
+                              </span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="text-brand-textMuted hover:text-brand-white transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                )
+              )}
+            </nav>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden text-brand-white hover:text-brand-primary transition-colors"
+              aria-label="Toggle menu"
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+
+            {/* Login Button (Desktop) */}
+            <div className="hidden md:block">
+              {user ? (
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-700">Welcome, {user.name}</span>
+                  <button
+                    onClick={handleLogout}
+                    className="text-sm text-[#e31414] hover:text-red-600 font-medium"
+                  >
+                    Log Out
+                  </button>
                 </div>
               ) : (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-lg text-brand-textMuted hover:text-brand-white transition-colors py-2"
+                <button
+                  onClick={() => setIsLoginModalOpen(true)}
+                  className="text-sm text-[#e31414] hover:text-red-600 font-medium"
                 >
-                  {link.label}
-                </Link>
-              )
-            )}
-          </nav>
+                  Log In
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-      )}
-    </header>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-brand-dark border-t border-brand-border">
+            <div className="container mx-auto px-4 py-4">
+              <nav className="space-y-4">
+                {navLinks.map((link) => (
+                  <div key={link.href}>
+                    {link.dropdown ? (
+                      <div>
+                        <button
+                          onClick={() => {
+                            if (link.href === '/programs') setIsProgramsOpen(!isProgramsOpen)
+                            if (link.href === '/memberships') setIsMembershipsOpen(!isMembershipsOpen)
+                            if (link.href === '/camps') setIsCampsOpen(!isCampsOpen)
+                          }}
+                          className="flex items-center justify-between w-full text-brand-white py-2"
+                        >
+                          {link.label}
+                          <ChevronDown
+                            className={`w-4 h-4 transition-transform ${
+                              (link.href === '/programs' && isProgramsOpen) ||
+                              (link.href === '/memberships' && isMembershipsOpen) ||
+                              (link.href === '/camps' && isCampsOpen)
+                                ? 'rotate-180'
+                                : ''
+                            }`}
+                          />
+                        </button>
+
+                        {/* Programs Mobile Dropdown */}
+                        {link.href === '/programs' && isProgramsOpen && (
+                          <div className="pl-4 space-y-4 mt-2">
+                            {link.subLinks?.map((category) => (
+                              <div key={category.category}>
+                                <h3 className="text-brand-white font-semibold mb-2">{category.category}</h3>
+                                <div className="space-y-2">
+                                  {category.links.map((subLink) => (
+                                    <Link
+                                      key={subLink.href}
+                                      href={subLink.href}
+                                      className="block text-brand-textMuted hover:text-brand-white transition-colors"
+                                    >
+                                      {subLink.label}
+                                    </Link>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                            <div>
+                              <h3 className="text-brand-white font-semibold mb-2">Special Programs</h3>
+                              <div className="space-y-2">
+                                {link.specialPrograms?.map((program) => (
+                                  <Link
+                                    key={program.href}
+                                    href={program.href}
+                                    className="block text-brand-textMuted hover:text-brand-white transition-colors"
+                                  >
+                                    {program.label}
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Memberships Mobile Dropdown */}
+                        {link.href === '/memberships' && isMembershipsOpen && (
+                          <div className="pl-4 space-y-2 mt-2">
+                            {link.membershipLinks?.map((membership) => (
+                              <Link
+                                key={membership.href}
+                                href={membership.href}
+                                className="block text-brand-textMuted hover:text-brand-white transition-colors"
+                              >
+                                {membership.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Camps Mobile Dropdown */}
+                        {link.href === '/camps' && isCampsOpen && (
+                          <div className="pl-4 space-y-2 mt-2">
+                            {link.campLinks?.map((camp) => (
+                              <Link
+                                key={camp.href}
+                                href={camp.href}
+                                className="block text-brand-textMuted hover:text-brand-white transition-colors"
+                              >
+                                {camp.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <Link
+                        href={link.href}
+                        className="block text-brand-textMuted hover:text-brand-white transition-colors py-2"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {link.label}
+                      </Link>
+                    )}
+                  </div>
+                ))}
+                {/* Login Button (Mobile) */}
+                <div className="pt-4">
+                  {user ? (
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-700">Welcome, {user.name}</span>
+                      <button
+                        onClick={handleLogout}
+                        className="text-sm text-[#e31414] hover:text-red-600 font-medium"
+                      >
+                        Log Out
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setIsLoginModalOpen(true)}
+                      className="text-sm text-[#e31414] hover:text-red-600 font-medium"
+                    >
+                      Log In
+                    </button>
+                  )}
+                </div>
+              </nav>
+            </div>
+          </div>
+        )}
+      </header>
+
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+      />
+    </>
   )
 } 
